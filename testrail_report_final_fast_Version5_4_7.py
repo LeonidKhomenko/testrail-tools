@@ -779,6 +779,8 @@ def build_final_report(candidate_cases, history_ids, in_open_ids):
 
         rows.append({
             'case_id': cid,
+            'project_id': args.project_id,
+            'suite_id': args.suite_id,
             'link': c['link'],
             'title': c['title'],
             'section': c['section'],
@@ -806,7 +808,7 @@ def save_to_csv(rows, filename):
         print(f'⚠️ No data to save for {filename}')
         return
 
-    fieldnames = ['case_id', 'link', 'title', 'section', 'automation_id', 'has_automation_id', 'status', 'safe_to_delete_candidate']
+    fieldnames = ['case_id', 'project_id', 'suite_id', 'link', 'title', 'section', 'automation_id', 'has_automation_id', 'status', 'safe_to_delete_candidate']
     with open(filename, 'w', newline='', encoding='utf-8') as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
