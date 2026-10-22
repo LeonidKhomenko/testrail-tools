@@ -1021,16 +1021,6 @@ def main():
     print(f'📋 Candidate cases after section filter: {len(case_rows)}')
     print(f'🔍 Automation field presence stats: {auto_field_stats if auto_field_stats else "none"}')
 
-    probe = next((x for x in case_rows if x['id'] == 663888), None)
-    if probe:
-        print(f'🧪 Probe case 663888: automation_id="{probe["automation_id"]}", has_automation_id={probe["has_automation_id"]}')
-    else:
-        print('🧪 Probe case 663888: not in current filtered scope')
-
-    if not case_rows:
-        print('⚠️ No candidate cases found with current filters.')
-        sys.exit(0)
-
     print('\n🏃 Fetching runs from plans...')
     runs_from_plans, run_to_plan = fetch_runs_from_plans(client, project_id, suite_id=suite_id)
 
@@ -1051,12 +1041,15 @@ def main():
         workers = 4
 
     cp_enabled = (input('Enable checkpoint CSV export? (Y/n): ').strip().lower() != 'n')
-    raw_cp_every = input('Checkpoint every N completed runs [default 50]: ').strip()
-    try:
-        checkpoint_every_runs = int(raw_cp_every) if raw_cp_every else 50
-        checkpoint_every_runs = max(1, checkpoint_every_runs)
+    if cp_enabled:
+      raw_cp_every = input('Checkpoint every N completed runs [default 50]: ').strip()
+      try:
+          checkpoint_every_runs = int(raw_cp_every) if raw_cp_every else 50
+          checkpoint_every_runs = max(1, checkpoint_every_runs)
     except ValueError:
         checkpoint_every_runs = 50
+    else:
+      checkpoint_every_runs = 0
 
     cache_enabled = (input('Enable in-memory get_tests cache? (Y/n): ').strip().lower() != 'n')
 
