@@ -18,6 +18,11 @@ Key behavior:
 - Automation ID detection:
   - uses confirmed key: custom_case_automation_id
   - raises explicit error if that key is missing in any case payload
+
+Updates in this version:
+- fixed indentation bug in checkpoint settings block
+- adds project_id + suite_id to CSV and XLSX exports
+- removes incorrect dependency on argparse args inside report-building logic
 """
 
 import csv
@@ -779,8 +784,8 @@ def build_final_report(candidate_cases, history_ids, in_open_ids):
 
         rows.append({
             'case_id': cid,
-            'project_id': args.project_id,
-            'suite_id': args.suite_id,
+            'project_id': c['project_id'],
+            'suite_id': c['suite_id'],
             'link': c['link'],
             'title': c['title'],
             'section': c['section'],
@@ -808,7 +813,12 @@ def save_to_csv(rows, filename):
         print(f'⚠️ No data to save for {filename}')
         return
 
-    fieldnames = ['case_id', 'project_id', 'suite_id', 'link', 'title', 'section', 'automation_id', 'has_automation_id', 'status', 'safe_to_delete_candidate']
+    fieldnames = [
+        'case_id', 'project_id', 'suite_id',
+        'link', 'title', 'section',
+        'automation_id', 'has_automation_id',
+        'status', 'safe_to_delete_candidate'
+    ]
     with open(filename, 'w', newline='', encoding='utf-8') as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
@@ -839,7 +849,10 @@ def save_to_xlsx(rows, filename):
     ws = wb.active
     ws.title = 'Case History Analysis'
 
-    headers = ['Case ID', 'Link', 'Title', 'Section', 'Automation ID', 'Has Automation ID', 'Status', 'Safe To Delete Candidate']
+    headers = [
+        'Case ID', 'Project ID', 'Suite ID', 'Link', 'Title', 'Section',
+        'Automation ID', 'Has Automation ID', 'Status', 'Safe To Delete Candidate'
+    ]
     ws.append(headers)
 
     header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
@@ -852,6 +865,8 @@ def save_to_xlsx(rows, filename):
     for r in rows:
         ws.append([
             r['case_id'],
+            r.get('project_id', ''),
+            r.get('suite_id', ''),
             r['link'],
             escape_spreadsheet_formula(r['title']),
             escape_spreadsheet_formula(r['section']),
@@ -862,18 +877,20 @@ def save_to_xlsx(rows, filename):
         ])
 
     for row_idx in range(2, len(rows) + 2):
-        cell = ws[f'B{row_idx}']
+        cell = ws[f'D{row_idx}']  # Link column shifted from B to D
         cell.hyperlink = cell.value
         cell.style = 'Hyperlink'
 
     ws.column_dimensions['A'].width = 12
-    ws.column_dimensions['B'].width = 65
-    ws.column_dimensions['C'].width = 60
-    ws.column_dimensions['D'].width = 60
-    ws.column_dimensions['E'].width = 28
-    ws.column_dimensions['F'].width = 20
-    ws.column_dimensions['G'].width = 32
-    ws.column_dimensions['H'].width = 28
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 65
+    ws.column_dimensions['E'].width = 60
+    ws.column_dimensions['F'].width = 60
+    ws.column_dimensions['G'].width = 28
+    ws.column_dimensions['H'].width = 20
+    ws.column_dimensions['I'].width = 32
+    ws.column_dimensions['J'].width = 28
 
     wb.save(filename)
     print(f'✅ XLSX saved: {filename}')
@@ -1010,8 +1027,28 @@ def main():
         if AUTOMATION_ID_FIELD in c:
             auto_field_stats[AUTOMATION_ID_FIELD] = auto_field_stats.get(AUTOMATION_ID_FIELD, 0) + 1
 
+        case_suite_id = c.get('suite_id')
+        if case_suite_id is None:
+            case_suite_id = suite_id
+
+        if (
+            not isinstance(case_suite_id, int)
+            or isinstance(case_suite_id, bool)
+            or case_suite_id <= 0
+        ):
+            raise ValueError(
+                f'Case {c["id"]}: cannot determine a valid suite_id'
+            )
+
+        if suite_id is not None and case_suite_id != suite_id:
+            raise ValueError(
+                f'Case {c["id"]}: suite_id={case_suite_id} does not match selected suite_id={suite_id}'
+            )
+
         case_rows.append({
             'id': c['id'],
+            'project_id': project_id,
+            'suite_id': case_suite_id,
             'title': c.get('title', ''),
             'section_id': sid,
             'section': section_path.get(sid, f'Section {sid}'),
@@ -1044,14 +1081,14 @@ def main():
 
     cp_enabled = (input('Enable checkpoint CSV export? (Y/n): ').strip().lower() != 'n')
     if cp_enabled:
-      raw_cp_every = input('Checkpoint every N completed runs [default 50]: ').strip()
-      try:
-          checkpoint_every_runs = int(raw_cp_every) if raw_cp_every else 50
-          checkpoint_every_runs = max(1, checkpoint_every_runs)
-    except ValueError:
-        checkpoint_every_runs = 50
+        raw_cp_every = input('Checkpoint every N completed runs [default 50]: ').strip()
+        try:
+            checkpoint_every_runs = int(raw_cp_every) if raw_cp_every else 50
+            checkpoint_every_runs = max(1, checkpoint_every_runs)
+        except ValueError:
+            checkpoint_every_runs = 50
     else:
-      checkpoint_every_runs = 0
+        checkpoint_every_runs = 0
 
     cache_enabled = (input('Enable in-memory get_tests cache? (Y/n): ').strip().lower() != 'n')
 
