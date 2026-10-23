@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Analyzer (interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/testrail_report_final_fast_Version5_4_7.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Cleanup (interactive)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/testrail_safe_cleanup.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
